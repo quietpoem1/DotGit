@@ -203,7 +203,16 @@ function startDownload(baseUrl, downloadFinished) {
     let zipTriggered = false;
 
     function arrayBufferToString(buffer) {
-        return new TextDecoder('iso-8859-1').decode(buffer);
+        // Build a true latin-1 (1:1 byte->char) string. TextDecoder('iso-8859-1')
+        // is an alias for windows-1252, which remaps bytes 0x80-0x9F to multi-byte
+        // code points and corrupts raw SHA-1 bytes parsed by checkTree.
+        const bytes = buffer instanceof Uint8Array ? buffer : new Uint8Array(buffer);
+        let result = "";
+        const chunkSize = 0x8000;
+        for (let i = 0; i < bytes.length; i += chunkSize) {
+            result += String.fromCharCode.apply(null, bytes.subarray(i, i + chunkSize));
+        }
+        return result;
     }
 
     function downloadZip() {
